@@ -10,7 +10,7 @@ app = Flask(__name__)
 # ==========================================
 # 👇 본인의 키를 입력하세요 (따옴표 안에!)
 # ==========================================
-kakao_key = "949989b1747758ede537aac1af1d60db" 
+kakao_key = "6b54ec85e094fe3fad62807b19992fe7" 
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
 target_routes = [
@@ -193,3 +193,4 @@ def home():
 
     except Exception as e:
         return f"<h1>⚠️ 에러</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
