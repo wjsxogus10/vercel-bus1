@@ -185,4 +185,38 @@ def home():
 
             var buses = allBusData[selectedRoute];
             
-            // 🔥 [핵
+            // 🔥 [핵심] 버스가 없으면 여기서 함수 끝냄 -> 지도는 그대로 보임!
+            if (!buses || buses.length === 0) {{
+                // 버스가 없어도 에러 안 나게 그냥 리턴
+                return;
+            }}
+
+            for (var i = 0; i < buses.length; i++) {{
+                var bus = buses[i];
+                var marker = new kakao.maps.Marker({{
+                    position: new kakao.maps.LatLng(bus.lat, bus.lng),
+                    image: new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/bus.png', new kakao.maps.Size(30, 32)),
+                    title: bus.no
+                }});
+                marker.setMap(map);
+                currentMarkers.push(marker);
+
+                var content = '<div style="padding:10px; min-width:150px; text-align:center;">' + 
+                              '<div style="font-weight:bold; font-size:14px; color:#4A90E2;">' + selectedRoute + '</div>' + 
+                              '<div style="font-size:13px; margin-top:4px;">차량: ' + bus.no + '</div>' +
+                              '</div>';
+                
+                var iw = new kakao.maps.InfoWindow({{ content: content }});
+                kakao.maps.event.addListener(marker, 'click', function() {{ iw.open(map, marker); }});
+            }}
+        }}
+
+        window.onload = function() {{
+            var savedRoute = localStorage.getItem("lastRoute");
+            if (savedRoute) document.getElementById("routeSelect").value = savedRoute;
+            changeRoute();
+        }};
+    </script>
+    </body>
+    </html>
+    """
