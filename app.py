@@ -10,7 +10,7 @@ app = Flask(__name__)
 # ==========================================
 # 👇 본인의 키를 입력하세요
 # ==========================================
-kakao_key = "96634d7c069478bed5140146cefd7002" 
+kakao_key = "04aff0fd4597913b68a5686cbe46d559" 
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
 target_routes = [
@@ -193,6 +193,7 @@ def home():
     </body>
     </html>
     """
+
 
 
 
