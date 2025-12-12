@@ -9,7 +9,7 @@ app = Flask(__name__)
 # =======================
 # 반드시 JavaScript 키!
 # =======================
-kakao_key = "YOUR_JAVASCRIPT_KEY"  
+kakao_key = "04aff0fd4597913b68a5686cbe46d559"  
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
 # 추적할 노선 리스트
