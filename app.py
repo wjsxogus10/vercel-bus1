@@ -13,7 +13,6 @@ app = Flask(__name__)
 kakao_key = "949989b1747758ede537aac1af1d60db" 
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
-# 표시할 주요 노선 리스트
 target_routes = [
     {"id": "30300040", "name": "102번 (수통골-대전역)"},
     {"id": "30300037", "name": "105번 (충대-비래동)"},
@@ -22,25 +21,18 @@ target_routes = [
     {"id": "30300002", "name": "급행2번 (봉산동-옥계동)"}
 ]
 
-# 1. 버스 위치 URL (실시간)
 pos_url = "http://openapitraffic.daejeon.go.kr/api/rest/busposinfo/getBusPosByRtid"
-# 2. 노선 경유지 URL (선 그리기용 - 정류장 목록)
 path_url = "http://openapitraffic.daejeon.go.kr/api/rest/busRouteInfo/getStaionByRoute"
 
 @app.route('/')
 def home():
     try:
-        all_data = {} # 여기에 { "102번": { "buses": [], "path": [] } } 형태로 담습니다.
+        all_data = {}
         
-        # 각 노선별로 데이터 수집
         for route in target_routes:
-            route_info = {
-                "buses": [],  # 실시간 버스 위치
-                "path": []    # 노선 경로 (선 그리기용)
-            }
+            route_info = { "buses": [], "path": [] }
             
-            # --- [1] 노선 경로(정류장) 가져오기 ---
-            # 선은 자주 안 변하니까 에러나면 그냥 빈 선으로 둡니다.
+            # 1. 노선 경로(정류장 좌표) 가져오기 - 선 그리기용
             try:
                 p_params = {'serviceKey': data_key, 'busRouteId': route['id']}
                 p_res = requests.get(path_url, params=p_params, timeout=3)
@@ -48,16 +40,13 @@ def home():
                     p_root = ET.fromstring(p_res.content)
                     stations = p_root.findall(".//itemList")
                     for st in stations:
-                        # 대전 API: BUS_NODE_Y_VAL = 위도(Latitude), BUS_NODE_X_VAL = 경도(Longitude)
-                        # 순서 헷갈리면 지도가 엉망이 되니 주의!
                         route_info["path"].append({
                             "lat": st.find("BUS_NODE_Y_VAL").text, 
                             "lng": st.find("BUS_NODE_X_VAL").text
                         })
-            except:
-                pass 
+            except: pass 
 
-            # --- [2] 실시간 버스 위치 가져오기 ---
+            # 2. 실시간 버스 위치 가져오기 - 마커용
             try:
                 b_params = {'serviceKey': data_key, 'busRouteId': route['id']}
                 b_res = requests.get(pos_url, params=b_params, timeout=3)
@@ -71,12 +60,10 @@ def home():
                                 "lat": bus.find("GPS_LATI").text,
                                 "lng": bus.find("GPS_LONG").text
                             })
-            except:
-                pass
+            except: pass
 
             all_data[route['name']] = route_info
 
-        # HTML 생성
         json_data = json.dumps(all_data, ensure_ascii=False)
         current_time = time.strftime("%H:%M")
         
@@ -89,7 +76,8 @@ def home():
         <html>
         <head>
             <meta charset="utf-8">
-            <meta http-equiv="refresh" content="20"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <meta http-equiv="refresh" content="20">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <title>대전 버스 노선 관제</title>
             <style>
                 * {{ box-sizing: border-box; font-family: 'Apple SD Gothic Neo', '맑은 고딕', sans-serif; }}
@@ -104,7 +92,6 @@ def home():
                     height: 200px;
                 }}
                 select {{ width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; }}
-                .status {{ font-size: 12px; color: #666; margin-bottom: 5px; text-align: center; }}
                 #map {{ position: absolute; top: 0; left: 0; right: 0; bottom: 200px; }}
 
                 @media (min-width: 768px) {{
@@ -118,13 +105,13 @@ def home():
         <div id="map"></div>
 
         <div class="sidebar">
-            <h2 style="margin:0 0 10px 0;">🚍 노선별 실시간 관제</h2>
-            <div class="status">업데이트: {current_time}</div>
+            <h2 style="margin:0 0 10px 0;">🚍 대전 버스 노선 관제</h2>
+            <div style="font-size:12px; color:#666; margin-bottom:5px;">업데이트: {current_time}</div>
             <select id="routeSelect" onchange="changeRoute()">
                 {options_html}
             </select>
             <div style="font-size:11px; color:#aaa; margin-top:auto; text-align:center;">
-                노선을 선택하면 경로(빨간선)와 버스가 표시됩니다.
+                지도 오른쪽 위 버튼을 눌러 '스카이뷰'를 확인하세요.
             </div>
         </div>
 
@@ -134,47 +121,47 @@ def home():
                 mapOption = {{ center: new kakao.maps.LatLng(36.3504, 127.3845), level: 8 }};
             var map = new kakao.maps.Map(mapContainer, mapOption);
             
+            // 🔥 [핵심] 지도 컨트롤 추가 (일반지도 / 스카이뷰 전환 버튼)
+            var mapTypeControl = new kakao.maps.MapTypeControl();
+            map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPRIGHT);
+
+            // 줌 컨트롤 (확대/축소)
+            var zoomControl = new kakao.maps.ZoomControl();
+            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
             var allData = {json_data};
             var currentMarkers = [];
-            var currentPolyline = null; // 현재 그려진 선을 저장할 변수
+            var currentPolyline = null;
 
             function changeRoute() {{
                 var select = document.getElementById("routeSelect");
                 var selectedRoute = select.value;
                 localStorage.setItem("lastRoute", selectedRoute);
 
-                // 1. 기존 마커 지우기
                 for (var i = 0; i < currentMarkers.length; i++) currentMarkers[i].setMap(null);
                 currentMarkers = [];
-
-                // 2. 기존 선 지우기 (이게 없으면 선이 계속 겹쳐서 그려짐!)
-                if (currentPolyline) {{
-                    currentPolyline.setMap(null);
-                    currentPolyline = null;
-                }}
+                if (currentPolyline) {{ currentPolyline.setMap(null); currentPolyline = null; }}
 
                 var data = allData[selectedRoute];
                 if (!data) return;
 
-                // 3. 노선 그리기 (빨간 선)
+                // 1. 빨간 선 그리기 (노선)
                 if (data.path.length > 0) {{
                     var linePath = [];
                     for (var i = 0; i < data.path.length; i++) {{
-                        // 주의: 카카오맵은 (위도, 경도) 순서입니다.
                         linePath.push(new kakao.maps.LatLng(data.path[i].lat, data.path[i].lng));
                     }}
-                    
                     currentPolyline = new kakao.maps.Polyline({{
                         path: linePath,
-                        strokeWeight: 6,      // 선의 두께
-                        strokeColor: '#FF0000', // 선의 색깔 (빨강)
-                        strokeOpacity: 0.6,   // 선의 투명도 (0~1)
-                        strokeStyle: 'solid'  // 선의 스타일
+                        strokeWeight: 6,
+                        strokeColor: '#FF0000',
+                        strokeOpacity: 0.7,
+                        strokeStyle: 'solid'
                     }});
                     currentPolyline.setMap(map);
                 }}
 
-                // 4. 버스 마커 찍기
+                // 2. 버스 마커 찍기
                 if (data.buses.length > 0) {{
                     for (var i = 0; i < data.buses.length; i++) {{
                         var bus = data.buses[i];
@@ -185,14 +172,12 @@ def home():
                         }});
                         marker.setMap(map);
                         currentMarkers.push(marker);
-
-                        var content = '<div style="padding:5px; font-size:12px;">' + bus.no + '</div>';
-                        var iw = new kakao.maps.InfoWindow({{ content: content }});
+                        
+                        var iw = new kakao.maps.InfoWindow({{
+                            content: '<div style="padding:5px; font-size:12px;">' + bus.no + '</div>'
+                        }});
                         kakao.maps.event.addListener(marker, 'click', function() {{ iw.open(map, marker); }});
                     }}
-                }} else {{
-                    // 버스는 없는데 노선만 있을 경우 (새벽 등)
-                    if(data.path.length === 0) alert("데이터 수신 대기 중...");
                 }}
             }}
 
@@ -207,4 +192,4 @@ def home():
         """
 
     except Exception as e:
-        return f"<h1>⚠️ 에러 발생</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+        return f"<h1>⚠️ 에러</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
