@@ -6,10 +6,10 @@ import time
 
 app = Flask(__name__)
 
-# ==========================================
-# 👇 방금 주신 새로운 키(04aff...)를 적용했습니다!
-# ==========================================
-kakao_key = "04aff0fd4597913b68a5686cbe46d559"
+# =======================
+# 반드시 JavaScript 키!
+# =======================
+kakao_key = "YOUR_JAVASCRIPT_KEY"  
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
 # 추적할 노선 리스트
@@ -26,17 +26,15 @@ path_url = "http://openapitraffic.daejeon.go.kr/api/rest/busRouteInfo/getStaionB
 
 @app.route('/')
 def home():
-    # 1. [안전장치] 빈 데이터통 만들기 (에러나도 지도는 뜨게 함)
     all_data = {}
     for route in target_routes:
         all_data[route['name']] = {"buses": [], "path": []}
-    
+
     status_msg = "데이터 수신 중..."
-    
-    # 2. 데이터 수집 (실패해도 무시하고 진행)
+
     try:
         for route in target_routes:
-            # (1) 노선 경로 (빨간 선 그리기용)
+            # (1) 노선 경로
             try:
                 p_params = {'serviceKey': data_key, 'busRouteId': route['id']}
                 p_res = requests.get(path_url, params=p_params, timeout=2)
@@ -47,7 +45,8 @@ def home():
                             "lat": st.find("BUS_NODE_Y_VAL").text, 
                             "lng": st.find("BUS_NODE_X_VAL").text
                         })
-            except: pass
+            except:
+                pass
 
             # (2) 실시간 버스 위치
             try:
@@ -63,49 +62,63 @@ def home():
                                 "lat": bus.find("GPS_LATI").text,
                                 "lng": bus.find("GPS_LONG").text
                             })
-            except: pass
+            except:
+                pass
+
         status_msg = "업데이트 완료"
-    except: 
+
+    except:
         status_msg = "연결 불안정 (지도는 표시됨)"
 
-    # 3. HTML 생성
     json_data = json.dumps(all_data, ensure_ascii=False)
     current_time = time.strftime("%H:%M")
-    options_html = "".join([f'<option value="{r["name"]}">{r["name"]}</option>' for r in target_routes])
+    options_html = "".join(
+        [f'<option value="{r["name"]}">{r["name"]}</option>' for r in target_routes]
+    )
 
     return f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
-        <meta http-equiv="refresh" content="20">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta http-equiv="refresh" content="25">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>대전 버스 관제</title>
+
         <style>
-            * {{ box-sizing: border-box; font-family: 'Apple SD Gothic Neo', '맑은 고딕', sans-serif; }}
-            body, html {{ margin:0; padding:0; width:100%; height:100%; overflow: hidden; }}
-            
-            /* 지도는 전체 화면 */
-            #map {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }}
-            
-            /* 컨트롤 패널 */
+            * {{ box-sizing: border-box; }}
+            body, html {{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; }}
+
+            #map {{
+                position:absolute; top:0; left:0;
+                width:100%; height:100%; z-index:0;
+            }}
+
             .sidebar {{
-                position: absolute; bottom: 0; left: 0; right: 0;
-                background: white; z-index: 1000;
-                border-top-left-radius: 20px; border-top-right-radius: 20px;
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
-                padding: 20px; display: flex; flex-direction: column; height: 260px;
+                position:absolute; bottom:0; left:0; right:0;
+                background:white; z-index:10;
+                border-top-left-radius:20px; border-top-right-radius:20px;
+                box-shadow:0 -3px 12px rgba(0,0,0,0.2);
+                padding:20px;
             }}
-            .header-row {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }}
-            .btn-group {{ display: flex; gap: 10px; margin-top: 10px; }}
-            .btn {{ flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }}
-            .btn-loc {{ background: #FEE500; color: #191919; }} /* 카카오 노란색 */
-            .btn-view {{ background: #eee; color: #333; }}
-            select {{ width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 10px; margin-top: 10px; }}
-            
-            @media (min-width: 768px) {{
-                .sidebar {{ top: 0; bottom: 0; width: 320px; height: 100%; right: auto; border-radius: 0; }}
+
+            select {{
+                width:100%; padding:12px; font-size:16px;
+                border-radius:10px; border:1px solid #ddd; margin-top:10px;
             }}
+
+            .btn-group {{
+                display:flex; gap:10px; margin-top:10px;
+            }}
+
+            .btn {{
+                flex:1; padding:12px; font-size:15px;
+                border:none; border-radius:10px; cursor:pointer;
+                font-weight:bold;
+            }}
+
+            .btn-loc {{ background:#FEE500; }}
+            .btn-view {{ background:#eee; }}
         </style>
     </head>
     <body>
@@ -113,129 +126,146 @@ def home():
     <div id="map"></div>
 
     <div class="sidebar">
-        <div class="header-row">
-            <h2 style="margin:0; font-size:18px;">🚍 대전 버스 관제</h2>
-            <span style="font-size:12px; color:#666; background:#eee; padding:3px 8px; border-radius:10px;">{current_time}</span>
+        <div style="display:flex; justify-content:space-between;">
+            <h3 style="margin:0;">🚍 대전 버스 관제</h3>
+            <span style="font-size:12px; background:#eee; padding:4px 8px; border-radius:10px;">
+                {current_time}
+            </span>
         </div>
-        <div style="font-size:12px; color:#888;">상태: {status_msg}</div>
-        
-        <select id="routeSelect" onchange="changeRoute()">
-            {options_html}
-        </select>
+
+        <div style="color:#666; font-size:13px; margin-bottom:8px;">
+            상태: {status_msg}
+        </div>
+
+        <select id="routeSelect" onchange="changeRoute()">{options_html}</select>
 
         <div class="btn-group">
             <button class="btn btn-loc" onclick="moveToMe()">📍 내 위치</button>
-            <button class="btn btn-view" onclick="toggleSkyview()">🛰️ 스카이뷰</button>
+            <button class="btn btn-view" onclick="toggleSkyview()">🛰 스카이뷰</button>
         </div>
+
         <div class="btn-group">
-             <button class="btn btn-view" onclick="toggleTraffic()">🚦 교통정보</button>
+            <button class="btn btn-view" onclick="toggleTraffic()">🚦 교통정보</button>
         </div>
     </div>
 
-    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}"></script>
+    <!-- ===== 카카오맵 JS SDK (안정화 버전) ===== -->
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&autoload=false"></script>
+
     <script>
-        // 도메인 등록 안 됐을 때 알림 띄우기
-        if (typeof kakao === 'undefined') {{
-            alert("❌ 지도 로딩 실패!\\n카카오 개발자 사이트에서 [플랫폼]-[Web]에\\n현재 주소를 등록했는지 꼭 확인하세요!");
-        }} else {{
-            var mapContainer = document.getElementById('map'), 
-                mapOption = {{ center: new kakao.maps.LatLng(36.3504, 127.3845), level: 7 }};
-            var map = new kakao.maps.Map(mapContainer, mapOption);
-            
-            var isSkyview = false;
-            var isTraffic = false;
+        // SDK 로딩 완료 후 실행
+        kakao.maps.load(function() {{
+            try {{
+                var mapContainer = document.getElementById('map');
+                var mapOption = {{
+                    center: new kakao.maps.LatLng(36.3504, 127.3845),
+                    level: 7
+                }};
 
-            var allData = {json_data};
-            var currentMarkers = [];
-            var currentPolyline = null;
+                window.map = new kakao.maps.Map(mapContainer, mapOption);
 
-            // 1. 내 위치 찾기
-            function moveToMe() {{
-                if (navigator.geolocation) {{
-                    navigator.geolocation.getCurrentPosition(function(position) {{
-                        var lat = position.coords.latitude;
-                        var lon = position.coords.longitude;
-                        var loc = new kakao.maps.LatLng(lat, lon);
-                        map.panTo(loc);
-                        new kakao.maps.Marker({{ position: loc }}).setMap(map);
-                    }});
-                }} else alert("위치 권한이 필요합니다.");
-            }}
+                var isSkyview = false;
+                var isTraffic = false;
+                var allData = {json_data};
+                var currentMarkers = [];
+                var currentPolyline = null;
 
-            // 2. 스카이뷰 토글
-            function toggleSkyview() {{
-                if (isSkyview) {{
-                    map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
-                    isSkyview = false;
-                }} else {{
-                    map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-                    isSkyview = true;
-                }}
-            }}
-
-            // 3. 교통정보 토글
-            function toggleTraffic() {{
-                if (isTraffic) {{
-                    map.removeOverlayMapTypeId(kakao.maps.MapTypeId.TRAFFIC);
-                    isTraffic = false;
-                }} else {{
-                    map.addOverlayMapTypeId(kakao.maps.MapTypeId.TRAFFIC);
-                    isTraffic = true;
-                }}
-            }}
-
-            // 4. 노선 변경 (핵심)
-            function changeRoute() {{
-                var select = document.getElementById("routeSelect");
-                var selectedRoute = select.value;
-                localStorage.setItem("lastRoute", selectedRoute);
-
-                // 초기화
-                for (var i = 0; i < currentMarkers.length; i++) currentMarkers[i].setMap(null);
-                currentMarkers = [];
-                if (currentPolyline) {{ currentPolyline.setMap(null); currentPolyline = null; }}
-
-                var data = allData[selectedRoute];
-                if (!data) return;
-
-                // 빨간 선 그리기
-                if (data.path.length > 0) {{
-                    var linePath = [];
-                    for (var i = 0; i < data.path.length; i++) {{
-                        linePath.push(new kakao.maps.LatLng(data.path[i].lat, data.path[i].lng));
+                // ========== 내 위치 ==========
+                window.moveToMe = function() {{
+                    if (navigator.geolocation) {{
+                        navigator.geolocation.getCurrentPosition(function(pos) {{
+                            var loc = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+                            map.panTo(loc);
+                            new kakao.maps.Marker({{ position: loc }}).setMap(map);
+                        }});
                     }}
-                    currentPolyline = new kakao.maps.Polyline({{
-                        path: linePath, strokeWeight: 6, strokeColor: '#FF0000', strokeOpacity: 0.7, strokeStyle: 'solid'
-                    }});
-                    currentPolyline.setMap(map);
                 }}
 
-                // 버스 마커 찍기
-                if (data.buses.length > 0) {{
-                    for (var i = 0; i < data.buses.length; i++) {{
-                        var bus = data.buses[i];
+                // ========== 스카이뷰 ==========
+                window.toggleSkyview = function() {{
+                    if (isSkyview) {{
+                        map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+                    }} else {{
+                        map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+                    }}
+                    isSkyview = !isSkyview;
+                }}
+
+                // ========== 교통정보 ==========
+                window.toggleTraffic = function() {{
+                    if (isTraffic) {{
+                        map.removeOverlayMapTypeId(kakao.maps.MapTypeId.TRAFFIC);
+                    }} else {{
+                        map.addOverlayMapTypeId(kakao.maps.MapTypeId.TRAFFIC);
+                    }}
+                    isTraffic = !isTraffic;
+                }}
+
+                // ========== 노선 변경 ==========
+                window.changeRoute = function() {{
+                    var routeName = document.getElementById("routeSelect").value;
+                    var data = allData[routeName];
+
+                    // 기존 마커 제거
+                    currentMarkers.forEach(m => m.setMap(null));
+                    currentMarkers = [];
+
+                    // 경로 제거
+                    if (currentPolyline) currentPolyline.setMap(null);
+
+                    // 경로 다시 그림
+                    if (data.path.length > 0) {{
+                        var line = data.path.map(p => new kakao.maps.LatLng(p.lat, p.lng));
+                        currentPolyline = new kakao.maps.Polyline({{
+                            path: line,
+                            strokeWeight: 6,
+                            strokeColor: '#ff0000',
+                            strokeOpacity: 0.7
+                        }});
+                        currentPolyline.setMap(map);
+                    }}
+
+                    // 버스 마커 표시
+                    data.buses.forEach(bus => {{
                         var marker = new kakao.maps.Marker({{
                             position: new kakao.maps.LatLng(bus.lat, bus.lng),
-                            image: new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/bus.png', new kakao.maps.Size(30, 32)),
+                            image: new kakao.maps.MarkerImage(
+                                'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/bus.png',
+                                new kakao.maps.Size(30, 32)
+                            ),
                             title: bus.no
                         }});
                         marker.setMap(map);
                         currentMarkers.push(marker);
-                        
-                        var content = '<div style="padding:5px; font-weight:bold;">' + bus.no + '</div>';
-                        var iw = new kakao.maps.InfoWindow({{ content: content }});
-                        kakao.maps.event.addListener(marker, 'click', function() {{ iw.open(map, marker); }});
-                    }}
+                    }});
                 }}
-            }}
 
-            window.onload = function() {{
-                var savedRoute = localStorage.getItem("lastRoute");
-                if (savedRoute) document.getElementById("routeSelect").value = savedRoute;
+                // 첫 로딩 시 노선 선택
                 changeRoute();
-            }};
-        }}
+
+            }} catch(e) {{
+                alert("❌ 지도 초기화 오류: " + e);
+            }}
+        }});
+
+        // 로딩 실패 체크
+        setTimeout(function(){{
+            if (typeof kakao === "undefined") {{
+                alert(
+                    "❌ 카카오맵 로딩 실패!\\n" +
+                    "카카오 개발자사이트 → 웹 플랫폼에 아래 도메인을 등록하세요.\\n\\n" +
+                    "- http://localhost:5000\\n" +
+                    "- http://127.0.0.1:5000\\n" +
+                    "- http://localhost\\n" +
+                    "- http://127.0.0.1"
+                );
+            }}
+        }}, 1500);
     </script>
+
     </body>
     </html>
     """
+
+if __name__ == "__main__":
+    app.run(debug=True)
