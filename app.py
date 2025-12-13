@@ -7,12 +7,11 @@ import time
 app = Flask(__name__)
 
 # ==========================================
-# 👇 JavaScript 키 (반드시 JS 키여야 함)
+# 👇 사용자님의 최신 키 (b614...)
 # ==========================================
 kakao_key = "b614d52fa9ba9e548875038b15710d66"
 data_key  = "d37ef28959d3391d0285eb9bf3e2b1b438f495ff248bbe61ace7f32f290bed83"
 
-# 추적할 노선 리스트
 target_routes = [
     {"id": "30300040", "name": "102번 (수통골-대전역)"},
     {"id": "30300037", "name": "105번 (충대-비래동)"},
@@ -74,7 +73,6 @@ def home():
     <html>
     <head>
         <meta charset="utf-8">
-        <meta http-equiv="refresh" content="25">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>대전 버스 관제</title>
         <style>
@@ -98,8 +96,8 @@ def home():
     <div id="map"></div>
 
     <div class="sidebar">
-        <h3>🚍 대전 버스 ({current_time})</h3>
-        <div style="font-size:12px; color:#666;">상태: {status_msg}</div>
+        <h3 style="margin:0;">🚍 대전 버스 ({current_time})</h3>
+        <div style="font-size:12px; color:#666; margin-top:5px;">상태: {status_msg}</div>
         <select id="routeSelect" onchange="changeRoute()">{options_html}</select>
         <div class="btn-group">
             <button class="btn btn-loc" onclick="moveToMe()">📍 내 위치</button>
@@ -110,28 +108,25 @@ def home():
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&autoload=false"></script>
     
     <script>
-        // 1. 카카오 스크립트가 로드된 후 실행 (Error 해결의 핵심!)
+        // 안전장치: 카카오 맵이 다 로딩되면 그때 실행!
         kakao.maps.load(function() {{
             var mapContainer = document.getElementById('map'), 
                 mapOption = {{ center: new kakao.maps.LatLng(36.3504, 127.3845), level: 7 }};
             
-            // 전역 변수로 map 설정
             window.map = new kakao.maps.Map(mapContainer, mapOption);
             window.isSkyview = false;
             
-            // 데이터 준비
             var allData = {json_data};
             var currentMarkers = [];
             var currentPolyline = null;
 
-            // 기능 함수들 연결
             window.moveToMe = function() {{
                 if (navigator.geolocation) {{
                     navigator.geolocation.getCurrentPosition(function(pos) {{
                         var loc = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
                         map.panTo(loc); new kakao.maps.Marker({{ position: loc }}).setMap(map);
                     }});
-                }} else alert("위치 권한 필요");
+                }} else alert("권한 필요");
             }};
 
             window.toggleSkyview = function() {{
@@ -144,28 +139,26 @@ def home():
                 var routeName = document.getElementById("routeSelect").value;
                 var data = allData[routeName];
 
-                // 초기화
                 currentMarkers.forEach(m => m.setMap(null)); currentMarkers = [];
                 if (currentPolyline) currentPolyline.setMap(null);
 
-                // 경로 그리기
                 if (data.path.length > 0) {{
                     var line = data.path.map(p => new kakao.maps.LatLng(p.lat, p.lng));
                     currentPolyline = new kakao.maps.Polyline({{ path: line, strokeWeight: 6, strokeColor: '#ff0000', strokeOpacity: 0.7 }});
                     currentPolyline.setMap(map);
                 }}
 
-                // 버스 그리기
                 data.buses.forEach(bus => {{
                     var marker = new kakao.maps.Marker({{
                         position: new kakao.maps.LatLng(bus.lat, bus.lng),
-                        title: bus.no
+                        title: bus.no,
+                        image: new kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/bus.png', new kakao.maps.Size(30, 32))
                     }});
                     marker.setMap(map); currentMarkers.push(marker);
                 }});
             }};
             
-            // 처음 실행
+            // 지도 로딩 완료 후 첫 실행
             changeRoute();
         }});
     </script>
